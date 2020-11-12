@@ -1,5 +1,4 @@
 <?php
-
 /**
  * WHMCS Casfree Payment Gateway Module
  */
@@ -13,14 +12,14 @@ if (!defined("WHMCS")) {
 function cashfree_MetaData()
 {
     return array(
-        'DisplayName' => 'Cashfree by INTECH',
+        'DisplayName' => 'Cashfree',
         'APIVersion' => '1.0.0',
         'DisableLocalCredtCardInput' => true,
         'TokenisedStorage' => false,
     );
 }
 /**
- * Define gateway configuration options.
+ * Define Cashfree gateway configuration options.
  * @return array
  */
 function cashfree_config()
@@ -38,7 +37,7 @@ function cashfree_config()
         ),
         'secretKey' => array(
             'FriendlyName' => 'Secret Key',
-            'Type' => 'text',
+            'Type' => 'password',
             'Size' => '50',
             'Description' => 'Cashfree "Secret Key" shared during activation API Key',
         ),
@@ -73,42 +72,43 @@ function cashfree_config()
 function cashfree_link($params)
 {
     // Gateway Configuration Parameters
-    $appId = $params['appId'];
-    $secretKey = $params['secretKey'];
-    $testMode = $params['testMode'];
+    $appId          = $params['appId'];
+    $secretKey      = $params['secretKey'];
+    $testMode       = $params['testMode'];
     
     // Invoice Parameters
-    $invoiceId = $params['invoiceid'];
-    $amount = $params['amount'];
-    $currencyCode = $params['currency'];
+    $invoiceId      = $params['invoiceid'];
+    $amount         = $params['amount'];
+    $currencyCode   = $params['currency'];
     
     // Client Parameters
-    $firstname = $params['clientdetails']['firstname'];
-    $lastname = $params['clientdetails']['lastname'];
-    $email = $params['clientdetails']['email'];
-    $phone = $params['clientdetails']['phonenumber'];
+    $firstname      = $params['clientdetails']['firstname'];
+    $lastname       = $params['clientdetails']['lastname'];
+    $email          = $params['clientdetails']['email'];
+    $phone          = $params['clientdetails']['phonenumber'];
 
     // System Parameters
-    $systemUrl = $params['systemurl'];
-    $returnUrl = $params['returnurl'];
-    $moduleName = $params['paymentmethod'];
+    $systemUrl      = $params['systemurl'];
+    $returnUrl      = $params['returnurl'];
+    $moduleName     = $params['paymentmethod'];
 
     //Cashfree request parameters
-    $cf_request = array();
-    $cf_request['appId'] = $appId;
-    $cf_request['secretKey'] = $secretKey;
-    $cf_request['orderId'] = 'cashfreeWhmcs_'.$invoiceId;
-    $cf_request['orderAmount'] = $amount;
-    $cf_request['orderCurrency'] = $currencyCode;
-    $cf_request['orderNote'] = $invoiceId;
-    $cf_request['customerName'] = $firstname.' '.$lastname;
-    $cf_request['customerEmail'] = $email;
-    $cf_request['customerPhone'] = $phone;
-    $cf_request['callback_url'] = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
-    $cf_request['returnUrl'] = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
-    $cf_request['notifyUrl'] = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
-    $cf_request['notifyUrl'] = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
+    $cf_request                     = array();
+    $cf_request['appId']            = $appId;
+    $cf_request['secretKey']        = $secretKey;
+    $cf_request['orderId']          = 'cashfreeWhmcs_'.$invoiceId;
+    $cf_request['orderAmount']      = $amount;
+    $cf_request['orderCurrency']    = $currencyCode;
+    $cf_request['orderNote']        = $invoiceId;
+    $cf_request['customerName']     = $firstname.' '.$lastname;
+    $cf_request['customerEmail']    = $email;
+    $cf_request['customerPhone']    = $phone;
+    $cf_request['callback_url']     = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
+    $cf_request['returnUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
+    $cf_request['notifyUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
+    $cf_request['source']           = "whmcs";
 
+    //Request to cashfree pg api for payment
     try
     {
         $apiEndpoint = ($params['testMode'] == 'on') ? 'https://test.cashfree.com' : 'https://api.cashfree.com';  				
