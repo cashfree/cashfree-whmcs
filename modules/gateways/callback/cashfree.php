@@ -13,6 +13,8 @@ require_once __DIR__ . '/../../../includes/functions.php';
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 
+use WHMCS\Database\Capsule;
+
 // Detect module name from filename.
 $gatewayModuleName = 'cashfree';
 
@@ -24,24 +26,26 @@ if (!$gatewayParams['type']) {
     die("Module Not Activated");
 }
 
-$appId = $gatewayParams["appId"];
-$secretKey = $gatewayParams["secretKey"];
+$appId              = $gatewayParams["appId"];
+$secretKey          = $gatewayParams["secretKey"];
 
 //Gateway response parameters
-$invoiceId = substr($_POST["orderId"], strpos($_POST["orderId"], "_") + 1);
-$cashfreeOrderId = $_POST["orderId"];
-$paymentAmount = $_POST["orderAmount"];
+$cashfreeOrderId    = $_POST["orderId"];
+$invoiceId          = substr($cashfreeOrderId, strpos($cashfreeOrderId, "_") + 1);
+$transactionId      = $_POST['referenceId'];
+$paymentAmount      = $_POST["orderAmount"];
 
 // Validate Callback Invoice ID.
-$invoiceId = checkCbInvoiceID($invoiceId, $gatewayParams['name']);
+$invoiceId          = checkCbInvoiceID($invoiceId, $gatewayParams['name']);
 
 // Check Callback Transaction ID.
-checkCbTransID($cashfreeOrderId);
+checkCbTransID($transactionId);
 
 $error = "";
 
-if($_POST['txStatus'] == 'SUCCESS') {
-
+//Check if payment successfully paid
+if($_POST['txStatus'] == 'SUCCESS')
+{
     try {
         $data = "{$_POST['orderId']}{$_POST['orderAmount']}{$_POST['referenceId']}{$_POST['txStatus']}{$_POST['paymentMode']}{$_POST['txMsg']}{$_POST['txTime']}";
         $hash_hmac = hash_hmac('sha256', $data, $secretKey, true) ;
@@ -61,17 +65,26 @@ else {
     $success = false;
     $error = $_POST['txMsg'];
 }
-if ($success === true) {
+
+# Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
+addInvoicePayment($invoiceId, $transactionId, $paymentAmount, 0, $gatewayParams["name"]);
+
+if ($success === true)
+{
     # Successful
     # Save to Gateway Log: name, data array, status
     logTransaction($gatewayParams["name"], $_POST, "Successful");
 
-    # Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
-    addInvoicePayment($invoiceId, $cashfreeOrderId, $paymentAmount, 0, $gatewayParams["name"]);
-
     header("Location: ".$gatewayParams['systemurl']."viewinvoice.php?id=" . $invoiceId."&paymentsuccess=true");
-} else {
+}
+else 
+{
     # Unsuccessful
+    Capsule::table('tblinvoices')
+        ->where('id', $invoiceId)
+        ->update(array(
+            'status' => 'Unpaid'
+        ));
     # Save to Gateway Log: name, data array, status
     logTransaction($gatewayParams["name"], $_POST, "Unsuccessful-".$error . ". Please check cashfree dashboard for order id: ".$cashfreeOrderId);
 
