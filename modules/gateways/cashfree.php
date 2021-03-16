@@ -103,6 +103,7 @@ function cashfree_link($params)
     $cf_request['customerPhone']    = $phone;
     $cf_request['returnUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
     $cf_request['notifyUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
+    $cf_request['source']           = "whmcs";
     $cf_request['signature']        = generateCashfreeSignature($cf_request,$params);
 
     $langPayNow = $params['langpaynow'];
@@ -114,14 +115,14 @@ function cashfree_link($params)
     }
     $htmlOutput .= '<input type="submit" value="' . $langPayNow . '" />';
     $htmlOutput .= '</form>';
+
     return $htmlOutput;
 }
 
 function generateCashfreeSignature($cf_request, $params)
 {
-    $secretKey      = $params['secretKey'];
-
     // get secret key from your config
+    $secretKey      = $params['secretKey'];
     ksort($cf_request);
     $signatureData = "";
     foreach ($cf_request as $key => $value){
