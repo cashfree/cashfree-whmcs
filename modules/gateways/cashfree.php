@@ -13,7 +13,7 @@ function cashfree_MetaData()
 {
     return array(
         'DisplayName' => 'Cashfree',
-        'APIVersion' => '1.0.0',
+        'APIVersion' => '1.0.1',
         'DisableLocalCredtCardInput' => true,
         'TokenisedStorage' => false,
     );
