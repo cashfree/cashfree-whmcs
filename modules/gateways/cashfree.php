@@ -1,6 +1,6 @@
 <?php
 /**
- * WHMCS Casfree Payment Gateway Module
+ * WHMCS Cashfree Payment Gateway Module
  */
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
@@ -73,7 +73,6 @@ function cashfree_link($params)
 {
     // Gateway Configuration Parameters
     $appId          = $params['appId'];
-    $secretKey      = $params['secretKey'];
     $testMode       = $params['testMode'];
     
     // Invoice Parameters
@@ -95,7 +94,6 @@ function cashfree_link($params)
     //Cashfree request parameters
     $cf_request                     = array();
     $cf_request['appId']            = $appId;
-    $cf_request['secretKey']        = $secretKey;
     $cf_request['orderId']          = 'cashfreeWhmcs_'.$invoiceId;
     $cf_request['orderAmount']      = $amount;
     $cf_request['orderCurrency']    = $currencyCode;
@@ -103,38 +101,35 @@ function cashfree_link($params)
     $cf_request['customerName']     = $firstname.' '.$lastname;
     $cf_request['customerEmail']    = $email;
     $cf_request['customerPhone']    = $phone;
-    $cf_request['callback_url']     = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
     $cf_request['returnUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
     $cf_request['notifyUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
     $cf_request['source']           = "whmcs";
+    $cf_request['signature']        = generateCashfreeSignature($cf_request,$params);
 
-    //Request to cashfree pg api for payment
-    try
-    {
-        $apiEndpoint = ($params['testMode'] == 'on') ? 'https://test.cashfree.com' : 'https://api.cashfree.com';  				
-		
-        $opUrl = $apiEndpoint."/api/v1/order/create";
-        $timeout = 10;
+    $langPayNow = $params['langpaynow'];
+    $apiEndpoint = ($params['testMode'] == 'on') ? 'https://test.cashfree.com/billpay' : 'https://www.cashfree.com';  
+    $url = $apiEndpoint."/checkout/post/submit";
+    $htmlOutput = '<form method="post" action="' . $url . '">';
+    foreach ($cf_request as $k => $v) {
+        $htmlOutput .= '<input type="hidden" name="' . $k . '" value="' . ($v) . '" />';
+    }
+    $htmlOutput .= '<input type="submit" value="' . $langPayNow . '" />';
+    $htmlOutput .= '</form>';
+
+    return $htmlOutput;
+}
+
+function generateCashfreeSignature($cf_request, $params)
+{
+    // get secret key from your config
+    $secretKey      = $params['secretKey'];
+    ksort($cf_request);
+    $signatureData = "";
+    foreach ($cf_request as $key => $value){
+        $signatureData .= $key.$value;
+    }
     
-        $request_string = "";
-        foreach($cf_request as $key=>$value) {
-            $request_string .= $key.'='.rawurlencode($value).'&';
-        }
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL,"$opUrl?");
-        curl_setopt($ch,CURLOPT_POST, count($cf_request));
-        curl_setopt($ch,CURLOPT_POSTFIELDS, $request_string);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-        $curl_result=curl_exec ($ch);
-        curl_close ($ch);
-        $jsonResponse = json_decode($curl_result);
-        header("Location: ". $jsonResponse->paymentLink);
-        exit;
-    }
-    catch (Exception $e)
-    {
-        return $e;
-    }
+    $signature = hash_hmac('sha256', $signatureData, $secretKey,true);
+    $signature = base64_encode($signature);
+    return $signature;
 }
