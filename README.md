@@ -17,8 +17,8 @@ This repository contains integration code for interaction with the Cashfree API 
 1. Log into WHMCS as administrator (http://whmcs_installation/admin).
 2. Navigate to Setup->Payments->Payment Gateways.
 3. Choose Cashfree in the Activate dropdown and Activate it
-4. Fill the App Id and Secret Key.
-5. Choose if you are using test mode or live mode.
+4. Fill the App Id and Secret Key
+5. Choose if you are using test mode or live mode
 6. Click 'Save Changes'
 
 ### Support
