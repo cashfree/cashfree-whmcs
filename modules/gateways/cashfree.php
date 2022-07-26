@@ -94,7 +94,7 @@ function cashfree_link($params)
     //Cashfree request parameters
     $cf_request                     = array();
     $cf_request['appId']            = $appId;
-    $cf_request['orderId']          = 'cashfreeWhmcs_'.$invoiceId;
+    $cf_request['orderId']          = time().'cashfreeWhmcs_'.$invoiceId;
     $cf_request['orderAmount']      = $amount;
     $cf_request['orderCurrency']    = $currencyCode;
     $cf_request['orderNote']        = $invoiceId;
