@@ -13,7 +13,7 @@ function cashfree_MetaData()
 {
     return array(
         'DisplayName' => 'Cashfree',
-        'APIVersion' => '1.0.1',
+        'APIVersion' => '1.0.2',
         'DisableLocalCredtCardInput' => true,
         'TokenisedStorage' => false,
     );
@@ -70,66 +70,92 @@ function cashfree_config()
  * @return string
  */
 function cashfree_link($params)
-{
-    // Gateway Configuration Parameters
-    $appId          = $params['appId'];
-    $testMode       = $params['testMode'];
-    
+{   
     // Invoice Parameters
     $invoiceId      = $params['invoiceid'];
-    $amount         = $params['amount'];
-    $currencyCode   = $params['currency'];
-    
-    // Client Parameters
-    $firstname      = $params['clientdetails']['firstname'];
-    $lastname       = $params['clientdetails']['lastname'];
-    $email          = $params['clientdetails']['email'];
-    $phone          = $params['clientdetails']['phonenumber'];
 
     // System Parameters
     $systemUrl      = $params['systemurl'];
-    $returnUrl      = $params['returnurl'];
     $moduleName     = $params['paymentmethod'];
 
     //Cashfree request parameters
     $cf_request                     = array();
-    $cf_request['appId']            = $appId;
     $cf_request['orderId']          = 'cashfreeWhmcs_'.$invoiceId;
-    $cf_request['orderAmount']      = $amount;
-    $cf_request['orderCurrency']    = $currencyCode;
-    $cf_request['orderNote']        = $invoiceId;
-    $cf_request['customerName']     = $firstname.' '.$lastname;
-    $cf_request['customerEmail']    = $email;
-    $cf_request['customerPhone']    = $phone;
-    $cf_request['returnUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php';
+    $cf_request['returnUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php?order_id={order_id}&order_token={order_token}';
     $cf_request['notifyUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
-    $cf_request['source']           = "whmcs";
-    $cf_request['signature']        = generateCashfreeSignature($cf_request,$params);
+    $payment_link                   = generatePaymentLink($cf_request,$params);
 
     $langPayNow = $params['langpaynow'];
-    $apiEndpoint = ($params['testMode'] == 'on') ? 'https://test.cashfree.com/billpay' : 'https://www.cashfree.com';  
-    $url = $apiEndpoint."/checkout/post/submit";
-    $htmlOutput = '<form method="post" action="' . $url . '">';
-    foreach ($cf_request as $k => $v) {
-        $htmlOutput .= '<input type="hidden" name="' . $k . '" value="' . ($v) . '" />';
-    }
+    $htmlOutput = '<form method="post" action="' . $payment_link . '">';
     $htmlOutput .= '<input type="submit" value="' . $langPayNow . '" />';
     $htmlOutput .= '</form>';
 
     return $htmlOutput;
 }
 
-function generateCashfreeSignature($cf_request, $params)
+function generatePaymentLink($cf_request, $params)
 {
-    // get secret key from your config
-    $secretKey      = $params['secretKey'];
-    ksort($cf_request);
-    $signatureData = "";
-    foreach ($cf_request as $key => $value){
-        $signatureData .= $key.$value;
+    $apiEndpoint = ($params['testMode'] == 'on') ? 'https://sandbox.cashfree.com/pg/orders' : 'https://api.cashfree.com/pg/orders'; 
+    $request = array(
+        "customer_details"      => array(
+            "customer_id"       => "WhmcsCustomer",
+            "customer_email"    => $params['clientdetails']['email'],
+            "customer_name"     => $params['clientdetails']['firstname'].' '.$params['clientdetails']['lastname'],
+            "customer_phone"    => $params['clientdetails']['phonenumber']
+        ),
+        "order_id"              => $cf_request['orderId'],
+        "order_amount"          => $params['amount'],
+        "order_currency"        => $params['currency'],
+        "order_note"            => "WHMCS Order",
+        "order_meta"            => array(
+            "return_url"        => $cf_request['returnUrl'],
+            "notify_url"        => $cf_request['notifyUrl']
+        )
+    );
+
+    $curlPostfield = json_encode($request);
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL             => $apiEndpoint,
+        CURLOPT_RETURNTRANSFER  => true,
+        CURLOPT_ENCODING        => "",
+        CURLOPT_MAXREDIRS       => 10,
+        CURLOPT_TIMEOUT         => 30,
+        CURLOPT_HTTP_VERSION    => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST   => "POST",
+        CURLOPT_POSTFIELDS      => $curlPostfield,
+        CURLOPT_HTTPHEADER      => [
+            "Accept:            application/json",
+            "Content-Type:      application/json",
+            "x-api-version:     2021-05-21",
+            "x-client-id:       ".$params['appId'],
+            "x-client-secret:   ".$params['secretKey'],
+            "x-idempotency-key: ".$cf_request['orderId']
+        ],
+    ]);
+
+    $response = curl_exec($curl);
+    
+    $err = curl_error($curl);
+
+    curl_close($curl);
+
+    if ($err) {
+        die("Unable to create your order. Please contact support.");
     }
     
-    $signature = hash_hmac('sha256', $signatureData, $secretKey,true);
-    $signature = base64_encode($signature);
-    return $signature;
+    $cfOrder = json_decode($response);
+
+    if (null !== $cfOrder && !empty($cfOrder->order_token))
+    {        
+        return $cfOrder->payment_link;
+    } else {
+        if(!empty($cfOrder->message)) {
+            die($cfOrder->message);
+        } else {
+            die("Unable to create your order. Please contact support.");
+        }
+    }
 }
