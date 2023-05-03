@@ -95,7 +95,16 @@ function cashfree_link($params)
 
 function generatePaymentLink($cf_request, $params)
 {
-    $apiEndpoint = ($params['testMode'] == 'on') ? 'https://sandbox.cashfree.com/pg/orders' : 'https://api.cashfree.com/pg/orders'; 
+    $apiEndpoint = ($params['testMode'] == 'on') ? 'https://sandbox.cashfree.com/pg/orders' : 'https://api.cashfree.com/pg/orders';
+    $getCashfreeOrderUrl = $apiEndpoint."/".$cf_request['orderId'];
+    
+    $getOrder = getCfOrder($params, $getCashfreeOrderUrl);
+
+    if (null !== $getOrder && $getOrder->order_status == "ACTIVE" &&
+        $getOrder->order_amount == $params['amount'] && $getOrder->order_currency == $params['currency']) {
+            return $getOrder->payment_link;
+    }
+
     $request = array(
         "customer_details"      => array(
             "customer_id"       => "WhmcsCustomer",
@@ -129,7 +138,7 @@ function generatePaymentLink($cf_request, $params)
         CURLOPT_HTTPHEADER      => [
             "Accept:            application/json",
             "Content-Type:      application/json",
-            "x-api-version:     2021-05-21",
+            "x-api-version:     2022-01-01",
             "x-client-id:       ".$params['appId'],
             "x-client-secret:   ".$params['secretKey'],
             "x-idempotency-key: ".$cf_request['orderId']
@@ -158,4 +167,37 @@ function generatePaymentLink($cf_request, $params)
             die("Unable to create your order. Please contact support.");
         }
     }
+}
+
+function getCfOrder($params, $curlUrl) {
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL             => $curlUrl,
+        CURLOPT_RETURNTRANSFER  => true,
+        CURLOPT_ENCODING        => "",
+        CURLOPT_MAXREDIRS       => 10,
+        CURLOPT_TIMEOUT         => 30,
+        CURLOPT_HTTP_VERSION    => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST   => "GET",
+        CURLOPT_HTTPHEADER      => [
+            "Accept:            application/json",
+            "Content-Type:      application/json",
+            "x-api-version:     2022-01-01",
+            "x-client-id:       ".$params['appId'],
+            "x-client-secret:   ".$params['secretKey']
+        ],
+    ]);
+
+    $getOrderResponse = curl_exec($curl);
+    
+    $err = curl_error($curl);
+
+    curl_close($curl);
+
+    if ($err) {
+        die("Unable to create your order. Please contact support.");
+    }
+    
+    return json_decode($getOrderResponse);
 }
