@@ -13,6 +13,16 @@ require_once __DIR__ . '/../../../includes/functions.php';
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 
+//checks duplicate transaction ID
+function checkDuplicateTransID($transactionId)
+{
+    $result = select_query("tblaccounts", "id", array("transid" => $transactionId));
+    $numRows = mysql_num_rows($result);
+    if ($numRows) {
+        return 1;
+    }
+}
+
 // Detect module name from filename.
 $gatewayModuleName = 'cashfree';
 
@@ -94,12 +104,14 @@ if (null !== $cfOrder && !empty($cfOrder[0]->payment_status))
 
 if ($success === true)
 {
-    # Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
-    addInvoicePayment($invoiceId, $transactionId, $paymentAmount, 0, $gatewayParams["name"]);
-    # Successful
-    # Save to Gateway Log: name, data array, status
-    logTransaction($gatewayParams["name"], $cfOrder[0], "Successful");
-
+    if (checkDuplicateTransID($transactionId) == 0){
+        # Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
+        addInvoicePayment($invoiceId, $transactionId, $paymentAmount, 0, $gatewayParams["name"]);
+        # Successful
+        # Save to Gateway Log: name, data array, status
+        logTransaction($gatewayParams["name"], $cfOrder[0], "Successful");
+    }
+    
     header("Location: ".$gatewayParams['systemurl']."viewinvoice.php?id=" . $invoiceId."&paymentsuccess=true");
 }
 else 
