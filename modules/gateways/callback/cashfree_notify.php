@@ -25,7 +25,7 @@ $invoiceData = array(
 $order = localAPI($command, $invoiceData);
 
 //Execute notify url after 10 sec of execution return url
-sleep(10);
+sleep(30);
 if($order['totalresults'] === 0 or $result['orders']['order'][0]['status'] === 'Paid')
 {
     return;
@@ -54,6 +54,18 @@ try {
     $success = false;
     $error ="WHMCS_ERROR:Request to Cashfree Failed";
 }
+
+/**
+ * Check Callback Transaction ID.
+ *
+ * Performs a check for any existing transactions with the same given
+ * transaction number.
+ *
+ * Performs a die upon encountering a duplicate.
+
+ * @param string $transactionId
+ */
+checkCbTransID($transactionId);
 
 # Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
 addInvoicePayment($invoiceId, $transactionId, $paymentAmount, 0, $gatewayParams["name"]);
