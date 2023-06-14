@@ -94,6 +94,18 @@ if (null !== $cfOrder && !empty($cfOrder[0]->payment_status))
 
 if ($success === true)
 {
+    /**
+     * Check Callback Transaction ID.
+     *
+     * Performs a check for any existing transactions with the same given
+     * transaction number.
+     *
+     * Performs a die upon encountering a duplicate.
+
+    * @param string $transactionId
+    */
+    checkCbTransID($transactionId);
+    
     # Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
     addInvoicePayment($invoiceId, $transactionId, $paymentAmount, 0, $gatewayParams["name"]);
     # Successful
