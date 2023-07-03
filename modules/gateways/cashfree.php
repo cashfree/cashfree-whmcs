@@ -70,13 +70,22 @@ function cashfree_config()
  * @return string
  */
 function cashfree_link($params)
-{   
+{  
     // Invoice Parameters
     $invoiceId      = $params['invoiceid'];
 
     // System Parameters
     $systemUrl      = $params['systemurl'];
     $moduleName     = $params['paymentmethod'];
+    $result = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id"=>$invoiceId)));
+
+    #check whether order is already paid or not, if paid then redirect to complete page
+    if($result['status'] === 'Paid')
+    {
+        header("Location: ".$params['systemurl']."/viewinvoice.php?id=" . $invoiceId);
+        
+        exit;
+    } 
 
     //Cashfree request parameters
     $cf_request                     = array();
@@ -140,8 +149,7 @@ function generatePaymentLink($cf_request, $params)
             "Content-Type:      application/json",
             "x-api-version:     2022-01-01",
             "x-client-id:       ".$params['appId'],
-            "x-client-secret:   ".$params['secretKey'],
-            "x-idempotency-key: ".$cf_request['orderId']
+            "x-client-secret:   ".$params['secretKey']
         ],
     ]);
 
