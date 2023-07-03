@@ -105,9 +105,12 @@ if ($success === true)
     * @param string $transactionId
     */
     checkCbTransID($transactionId);
+
+    $result = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id"=>$invoiceId)));
+    $amount = $result['total'];
     
     # Apply Payment to Invoice: invoiceid, transactionid, amount paid, fees, modulename
-    addInvoicePayment($invoiceId, $transactionId, $paymentAmount, 0, $gatewayParams["name"]);
+    addInvoicePayment($invoiceId, $transactionId, $amount, 0, $gatewayParams["name"]);
     # Successful
     # Save to Gateway Log: name, data array, status
     logTransaction($gatewayParams["name"], $cfOrder[0], "Successful");
