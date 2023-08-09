@@ -5,6 +5,7 @@
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
+
 /**
  * Define module related meta data.
  * @return array
@@ -13,11 +14,12 @@ function cashfree_MetaData()
 {
     return array(
         'DisplayName' => 'Cashfree',
-        'APIVersion' => '1.0.2',
+        'APIVersion' => '2.1.2',
         'DisableLocalCredtCardInput' => true,
         'TokenisedStorage' => false,
     );
 }
+
 /**
  * Define Cashfree gateway configuration options.
  * @return array
@@ -61,6 +63,7 @@ function cashfree_config()
         ),
     );
 }
+
 /**
  * Payment link.
  * Required by third party payment gateway modules only.
@@ -70,29 +73,27 @@ function cashfree_config()
  * @return string
  */
 function cashfree_link($params)
-{  
+{
     // Invoice Parameters
-    $invoiceId      = $params['invoiceid'];
+    $invoiceId = $params['invoiceid'];
 
     // System Parameters
-    $systemUrl      = $params['systemurl'];
-    $moduleName     = $params['paymentmethod'];
-    $result = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id"=>$invoiceId)));
+    $systemUrl = $params['systemurl'];
+    $moduleName = $params['paymentmethod'];
+    $result = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id" => $invoiceId)));
 
     #check whether order is already paid or not, if paid then redirect to complete page
-    if($result['status'] === 'Paid')
-    {
-        header("Location: ".$params['systemurl']."/viewinvoice.php?id=" . $invoiceId);
-        
+    if ($result['status'] === 'Paid') {
+        header("Location: " . $params['systemurl'] . "/viewinvoice.php?id=" . $invoiceId);
         exit;
-    } 
+    }
 
     //Cashfree request parameters
-    $cf_request                     = array();
-    $cf_request['orderId']          = 'cashfreeWhmcs_'.$invoiceId;
-    $cf_request['returnUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php?order_id={order_id}&order_token={order_token}';
-    $cf_request['notifyUrl']        = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
-    $payment_link                   = generatePaymentLink($cf_request,$params);
+    $cf_request = array();
+    $cf_request['orderId'] = 'cf' . time() . '_' . $invoiceId;
+    $cf_request['returnUrl'] = $systemUrl . 'modules/gateways/callback/' . $moduleName . '.php?order_id={order_id}&order_token={order_token}';
+    $cf_request['notifyUrl'] = $systemUrl . 'modules/gateways/callback/' . $moduleName . '_notify.php';
+    $payment_link = generatePaymentLink($cf_request, $params);
 
     $langPayNow = $params['langpaynow'];
     $htmlOutput = '<form method="post" action="' . $payment_link . '">';
@@ -105,30 +106,30 @@ function cashfree_link($params)
 function generatePaymentLink($cf_request, $params)
 {
     $apiEndpoint = ($params['testMode'] == 'on') ? 'https://sandbox.cashfree.com/pg/orders' : 'https://api.cashfree.com/pg/orders';
-    $getCashfreeOrderUrl = $apiEndpoint."/".$cf_request['orderId'];
-    
+    $getCashfreeOrderUrl = $apiEndpoint . "/" . $cf_request['orderId'];
+
     $getOrder = getCfOrder($params, $getCashfreeOrderUrl);
 
     if (null !== $getOrder && $getOrder->order_status == "ACTIVE" &&
         $getOrder->order_amount == $params['amount'] && $getOrder->order_currency == $params['currency']) {
-            return $getOrder->payment_link;
+        return $getOrder->payment_link;
     }
 
     $request = array(
-        "customer_details"      => array(
-            "customer_id"       => "WhmcsCustomer",
-            "customer_email"    => $params['clientdetails']['email'],
-            "customer_name"     => $params['clientdetails']['firstname'].' '.$params['clientdetails']['lastname'],
-            "customer_phone"    => $params['clientdetails']['phonenumber']
+        "customer_details" => array(
+            "customer_id" => "WhmcsCustomer",
+            "customer_email" => $params['clientdetails']['email'],
+            "customer_name" => $params['clientdetails']['firstname'] . ' ' . $params['clientdetails']['lastname'],
+            "customer_phone" => $params['clientdetails']['phonenumber'],
         ),
-        "order_id"              => $cf_request['orderId'],
-        "order_amount"          => $params['amount'],
-        "order_currency"        => $params['currency'],
-        "order_note"            => "WHMCS Order",
-        "order_meta"            => array(
-            "return_url"        => $cf_request['returnUrl'],
-            "notify_url"        => $cf_request['notifyUrl']
-        )
+        "order_id" => $cf_request['orderId'],
+        "order_amount" => $params['amount'],
+        "order_currency" => $params['currency'],
+        "order_note" => "WHMCS Order",
+        "order_meta" => array(
+            "return_url" => $cf_request['returnUrl'],
+            "notify_url" => $cf_request['notifyUrl'],
+        ),
     );
 
     $curlPostfield = json_encode($request);
@@ -136,25 +137,25 @@ function generatePaymentLink($cf_request, $params)
     $curl = curl_init();
 
     curl_setopt_array($curl, [
-        CURLOPT_URL             => $apiEndpoint,
-        CURLOPT_RETURNTRANSFER  => true,
-        CURLOPT_ENCODING        => "",
-        CURLOPT_MAXREDIRS       => 10,
-        CURLOPT_TIMEOUT         => 30,
-        CURLOPT_HTTP_VERSION    => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST   => "POST",
-        CURLOPT_POSTFIELDS      => $curlPostfield,
-        CURLOPT_HTTPHEADER      => [
-            "Accept:            application/json",
-            "Content-Type:      application/json",
-            "x-api-version:     2022-01-01",
-            "x-client-id:       ".$params['appId'],
-            "x-client-secret:   ".$params['secretKey']
+        CURLOPT_URL => $apiEndpoint,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => "POST",
+        CURLOPT_POSTFIELDS => $curlPostfield,
+        CURLOPT_HTTPHEADER => [
+            "Accept: application/json",
+            "Content-Type: application/json",
+            "x-api-version: 2022-01-01",
+            "x-client-id: " . $params['appId'],
+            "x-client-secret: " . $params['secretKey'],
         ],
     ]);
 
     $response = curl_exec($curl);
-    
+
     $err = curl_error($curl);
 
     curl_close($curl);
@@ -162,14 +163,13 @@ function generatePaymentLink($cf_request, $params)
     if ($err) {
         die("Unable to create your order. Please contact support.");
     }
-    
+
     $cfOrder = json_decode($response);
 
-    if (null !== $cfOrder && !empty($cfOrder->order_token))
-    {        
+    if (null !== $cfOrder && !empty($cfOrder->order_token)) {
         return $cfOrder->payment_link;
     } else {
-        if(!empty($cfOrder->message)) {
+        if (!empty($cfOrder->message)) {
             die($cfOrder->message);
         } else {
             die("Unable to create your order. Please contact support.");
@@ -177,28 +177,29 @@ function generatePaymentLink($cf_request, $params)
     }
 }
 
-function getCfOrder($params, $curlUrl) {
+function getCfOrder($params, $curlUrl)
+{
     $curl = curl_init();
 
     curl_setopt_array($curl, [
-        CURLOPT_URL             => $curlUrl,
-        CURLOPT_RETURNTRANSFER  => true,
-        CURLOPT_ENCODING        => "",
-        CURLOPT_MAXREDIRS       => 10,
-        CURLOPT_TIMEOUT         => 30,
-        CURLOPT_HTTP_VERSION    => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST   => "GET",
-        CURLOPT_HTTPHEADER      => [
-            "Accept:            application/json",
-            "Content-Type:      application/json",
-            "x-api-version:     2022-01-01",
-            "x-client-id:       ".$params['appId'],
-            "x-client-secret:   ".$params['secretKey']
+        CURLOPT_URL => $curlUrl,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => "",
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => "GET",
+        CURLOPT_HTTPHEADER => [
+            "Accept: application/json",
+            "Content-Type: application/json",
+            "x-api-version: 2022-01-01",
+            "x-client-id: " . $params['appId'],
+            "x-client-secret: " . $params['secretKey'],
         ],
     ]);
 
     $getOrderResponse = curl_exec($curl);
-    
+
     $err = curl_error($curl);
 
     curl_close($curl);
@@ -206,6 +207,6 @@ function getCfOrder($params, $curlUrl) {
     if ($err) {
         die("Unable to create your order. Please contact support.");
     }
-    
+
     return json_decode($getOrderResponse);
 }
