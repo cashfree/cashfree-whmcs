@@ -99,7 +99,7 @@ function cashfree_link($params)
     $cf_request                 = array();
     $cf_request['orderId']      = 'cf'.time().'_'.$invoice_id;
     $cf_request['returnUrl']    = $system_url . 'modules/gateways/cashfree/' . $module_name . '.php?order_id={order_id}';
-    $cf_request['notifyUrl']    = "$system_url . 'modules/gateways/cashfree/' . $module_name . '_notify.php'";
+    $cf_request['notifyUrl']    = $system_url . 'modules/gateways/cashfree/' . $module_name . '_notify.php';
     $mode = $cf_request['mode'] = ($params['testMode'] == 'on') ? 'sandbox' : 'production';
     $payment_session_id         = generatePaymentSession($cf_request,$params);
 
