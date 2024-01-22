@@ -1,5 +1,4 @@
 <?php
-die;
 /**
  * WHMCS Cashfree Payment Callback File
  *
@@ -20,7 +19,6 @@ function checkTransIdExist($transaction_id) {
     $transaction_details = Capsule::table('tblaccounts')
         ->where('transid', $transaction_id)
         ->first();
-    
     return ($transaction_details) ? true : false;
 }
 
