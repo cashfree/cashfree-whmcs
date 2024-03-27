@@ -1,5 +1,5 @@
 <?php
-define('CASHFREE_PLUGIN_VERSION', '2.2.0', true);
+define('CASHFREE_PLUGIN_VERSION', '2.3.0', true);
 define('API_VERSION', '2022-09-01');
 
 /**
