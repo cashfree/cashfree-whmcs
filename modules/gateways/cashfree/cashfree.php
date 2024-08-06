@@ -123,7 +123,7 @@ if ($success === true)
     // var_dump(checkTransIdExist($transaction_id));
     // die;
     if (!checkTransIdExist($transaction_id)){
-        addInvoicePayment($invoice_id, $transaction_id, $invoice_amount, 0, $gateway_params["name"]);
+        addInvoicePayment($invoice_id, $transaction_id, $invoice_amount, 0, $gateway_module_name);
         
         # Successful
         # Save to Gateway Log: name, data array, status

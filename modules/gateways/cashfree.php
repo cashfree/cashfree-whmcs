@@ -1,5 +1,5 @@
 <?php
-define('CASHFREE_PLUGIN_VERSION', '2.3.0', true);
+define('CASHFREE_PLUGIN_VERSION', '2.4.0', true);
 define('API_VERSION', '2022-09-01');
 
 /**
@@ -62,6 +62,11 @@ function cashfree_config()
             'Type' => 'yesno',
             'Description' => 'Tick to enable test mode',
         ),
+        'checkoutPopUp' => array(
+            'FriendlyName' => 'Enable Popup Checkout',
+            'Type' => 'yesno',
+            'Description' => 'Tick to enable popup checkout',
+        ),
     );
 }
 /**
@@ -73,31 +78,32 @@ function cashfree_config()
  * @return string
  */
 function cashfree_link($params)
-{  
+{
     // Invoice Parameters
-    $invoice_id      = $params['invoiceid'];
+    $invoice_id = $params['invoiceid'];
 
     // System Parameters
-    $system_url      = $params['systemurl'];
-    $module_name     = $params['paymentmethod'];
+    $system_url = $params['systemurl'];
+    $module_name = $params['paymentmethod'];
     $invoice_details = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id" => $invoice_id)));
 
-    #check whether order is already paid or not, if paid then redirect to complete page
-    if($invoice_details['status'] === 'Paid')
-    {
-        header("Location: ".$system_url."/viewinvoice.php?id=" . $invoice_id);
-        
+    // Check if the order is already paid
+    if ($invoice_details['status'] === 'Paid') {
+        header("Location: " . $system_url . "/viewinvoice.php?id=" . $invoice_id);
         exit;
-    } 
+    }
 
-    //Cashfree request parameters
-    $cf_request                 = array();
-    $cf_request['orderId']      = 'cf'.time().'_'.$invoice_id;
-    $cf_request['returnUrl']    = $system_url . 'modules/gateways/cashfree/' . $module_name . '.php?order_id={order_id}';
-    $cf_request['notifyUrl']    = $system_url . 'modules/gateways/cashfree/' . $module_name . '_notify.php';
-    $mode = $cf_request['mode'] = ($params['testMode'] == 'on') ? 'sandbox' : 'production';
-    $payment_session_id         = generatePaymentSession($cf_request,$params);
-
+    // Cashfree request parameters
+    $cf_request = array(
+        'orderId' => 'cf' . time() . '_' . $invoice_id,
+        'returnUrl' => $system_url . 'modules/gateways/cashfree/' . $module_name . '.php?order_id={order_id}',
+        'notifyUrl' => $system_url . 'modules/gateways/cashfree/' . $module_name . '_notify.php',
+        'mode' => ($params['testMode'] == 'on') ? 'sandbox' : 'production'
+    );
+    $callback_url = $system_url . 'modules/gateways/cashfree/' . $module_name . '.php?order_id=' . $cf_request['orderId'];
+    $payment_session_id = generatePaymentSession($cf_request, $params);
+    // HTML Output
+    $checkout_function = $params['checkoutPopUp'] == 'on' ? "openCheckout()" : "cashfree.checkout({paymentSessionId: '$payment_session_id', platformName: 'wh'})";
     $html_output = <<<EOT
         <!DOCTYPE html>
         <html lang="en">
@@ -105,23 +111,27 @@ function cashfree_link($params)
             <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
         </head>
         <body>
-            <button type="button" id="renderBtn">
-            Pay Now
-            </button>
+            <form action="javascript:void(0);"></form>
+            <button type="button" id="renderBtn">Pay Now</button>
         </body>
         <script>
-            const cashfree = Cashfree({
-                mode: "$mode"
-            });
-            document.getElementById("renderBtn").addEventListener("click", () => {
+            const cashfree = Cashfree({mode: "{$cf_request['mode']}"});
+            function openCheckout(){
                 cashfree.checkout({
-                paymentSessionId: "$payment_session_id",
-                platformName: "wh"
+                    paymentSessionId: "$payment_session_id",
+                    redirectTarget: "_modal",
+                    platformName: "wh"
+                }).then((result) => {
+                    window.location.href = "$callback_url";
                 });
+            }
+            document.getElementById("renderBtn").addEventListener("click", () => {
+                $checkout_function;
             });
         </script>
         </html>
-        EOT;
+    EOT;
+
     return $html_output;
 }
 
@@ -223,15 +233,15 @@ function createCashfreeOrder($cf_request, $params, $api_endpoint) {
     ]);
 
     $response = curl_exec($curl);
-
-    $err = curl_error($curl);
-
+    $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     curl_close($curl);
-
-    if ($err) {
+    if ($httpcode != 200) {
+        $errArray = json_decode($response, true);
+        if (isset($errArray['message'])) {
+            die($errArray['message']);
+        }
         die("Unable to create your order. Please contact support.");
     }
-    
     $cf_order = json_decode($response);
 
     if ($cf_order && !empty($cf_order->payment_session_id)) {
