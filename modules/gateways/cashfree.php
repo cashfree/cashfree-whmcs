@@ -1,5 +1,5 @@
 <?php
-define('CASHFREE_PLUGIN_VERSION', '2.4.0', true);
+define('CASHFREE_PLUGIN_VERSION', '2.4.1', true);
 define('API_VERSION', '2022-09-01');
 
 /**
@@ -191,11 +191,18 @@ function getCfOrder($params, $curl_url) {
 }
 
 function createCashfreeOrder($cf_request, $params, $api_endpoint) {
+    $phone_number = $params['clientdetails']['phonenumber'];
+    if (strlen($phone_number) < 10) {
+        $phone_number = "9999999999";
+    } else if(strlen($phone_number) > 10) {
+        $phone_number = preg_replace('/\D/', '', $phone_number);
+        $phone_number = '+' . $phone_number;
+    }
     $customer_details = array(
         "customer_id"       => "WhmcsCustomer",
         "customer_email"    => $params['clientdetails']['email'],
         "customer_name"     => $params['clientdetails']['firstname'].' '.$params['clientdetails']['lastname'],
-        "customer_phone"    => $params['clientdetails']['phonenumber']
+        "customer_phone"    => $phone_number
     );
     $order_meta = array(
         "return_url"        => $cf_request['returnUrl'],
