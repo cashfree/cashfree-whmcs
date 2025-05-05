@@ -1,5 +1,5 @@
 <?php
-define('CASHFREE_PLUGIN_VERSION', '2.4.1', true);
+define('CASHFREE_PLUGIN_VERSION', '2.4.2', true);
 define('API_VERSION', '2022-09-01');
 
 /**
@@ -79,32 +79,45 @@ function cashfree_config()
  */
 function cashfree_link($params)
 {
-    // Invoice Parameters
     $invoice_id = $params['invoiceid'];
 
-    // System Parameters
     $system_url = $params['systemurl'];
     $module_name = $params['paymentmethod'];
     $invoice_details = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id" => $invoice_id)));
 
-    // Check if the order is already paid
     if ($invoice_details['status'] === 'Paid') {
         header("Location: " . $system_url . "/viewinvoice.php?id=" . $invoice_id);
         exit;
     }
 
-    // Cashfree request parameters
     $cf_request = array(
         'orderId' => 'cf' . time() . '_' . $invoice_id,
         'returnUrl' => $system_url . 'modules/gateways/cashfree/' . $module_name . '.php?order_id={order_id}',
         'notifyUrl' => $system_url . 'modules/gateways/cashfree/' . $module_name . '_notify.php',
         'mode' => ($params['testMode'] == 'on') ? 'sandbox' : 'production'
     );
+    $mode = $cf_request['mode'];
     $callback_url = $system_url . 'modules/gateways/cashfree/' . $module_name . '.php?order_id=' . $cf_request['orderId'];
     $payment_session_id = generatePaymentSession($cf_request, $params);
-    // HTML Output
+
     $checkout_function = $params['checkoutPopUp'] == 'on' ? "openCheckout()" : "cashfree.checkout({paymentSessionId: '$payment_session_id', platformName: 'wh'})";
-    $html_output = <<<EOT
+
+    $html_output = generateHtmlOutput($cf_request, $payment_session_id, $callback_url, $checkout_function);
+
+    return $html_output;
+}
+
+function generateHtmlOutput($cf_request, $payment_session_id, $callback_url, $checkout_function)
+{
+    $mode = $cf_request['mode'];
+    $isPaymentFailed = !empty($_GET["paymentfailed"]) && !empty($_GET["id"]);
+    $domContentLoadedScript = !$isPaymentFailed ? <<<EOT
+        document.addEventListener("DOMContentLoaded", function() {
+            $checkout_function;
+        });
+    EOT : '';
+
+    return <<<EOT
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -115,7 +128,7 @@ function cashfree_link($params)
             <button type="button" id="renderBtn">Pay Now</button>
         </body>
         <script>
-            const cashfree = Cashfree({mode: "{$cf_request['mode']}"});
+            const cashfree = Cashfree({mode: "$mode"});
             function openCheckout(){
                 cashfree.checkout({
                     paymentSessionId: "$payment_session_id",
@@ -128,11 +141,10 @@ function cashfree_link($params)
             document.getElementById("renderBtn").addEventListener("click", () => {
                 $checkout_function;
             });
+            $domContentLoadedScript
         </script>
         </html>
     EOT;
-
-    return $html_output;
 }
 
 function generatePaymentSession($cf_request, $params)

@@ -1,4 +1,4 @@
-## Official Cashfree Payment Gateway plugin for WooCommerce.
+## Official Cashfree Payment Gateway plugin for WHMCS.
 
 ![GitHub](https://img.shields.io/github/license/cashfree/cashfree-whmcs) ![Discord](https://img.shields.io/discord/931125665669972018?label=discord) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/cashfree/cashfree-whmcs/master) ![GitHub release (with filter)](https://img.shields.io/github/v/release/cashfree/cashfree-whmcs?label=latest)  ![GitHub forks](https://img.shields.io/github/forks/cashfree/cashfree-whmcs) ![GitHub Repo stars](https://img.shields.io/github/stars/cashfree/cashfree-whmcs)
 
