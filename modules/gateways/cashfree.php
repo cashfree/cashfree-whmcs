@@ -1,5 +1,5 @@
 <?php
-define('CASHFREE_PLUGIN_VERSION', '2.4.2', true);
+define('CASHFREE_PLUGIN_VERSION', '2.4.3', true);
 define('API_VERSION', '2022-09-01');
 
 /**
@@ -8,6 +8,8 @@ define('API_VERSION', '2022-09-01');
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
+
+use WHMCS\Database\Capsule;
 /**
  * Define module related meta data.
  * @return array
@@ -83,9 +85,13 @@ function cashfree_link($params)
 
     $system_url = $params['systemurl'];
     $module_name = $params['paymentmethod'];
-    $invoice_details = mysql_fetch_assoc(select_query('tblinvoices', '*', array("id" => $invoice_id)));
+    
+    // Use Capsule instead of deprecated mysql functions
+    $invoice_details = Capsule::table('tblinvoices')
+        ->where('id', $invoice_id)
+        ->first();
 
-    if ($invoice_details['status'] === 'Paid') {
+    if ($invoice_details && $invoice_details->status === 'Paid') {
         header("Location: " . $system_url . "/viewinvoice.php?id=" . $invoice_id);
         exit;
     }
